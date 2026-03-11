@@ -1,7 +1,9 @@
 package com.example.pokedexapp
 
+import android.Manifest
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -25,8 +27,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -35,17 +37,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.example.pokedexapp.ui.PokemonViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.URL
+
+const val DEFAULT_PIKACHU_SPRITE_URL =
+    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png"
 
 /**
  * A composable screen that demonstrates the camera + sprite overlay feature.
@@ -59,12 +67,9 @@ import java.net.URL
 @Composable
 fun CameraFeatureScreen(
     modifier: Modifier = Modifier,
-    initialSpriteUrl: String = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png",
+    initialSpriteUrl: String = DEFAULT_PIKACHU_SPRITE_URL,
     onCompositeSaved: ((Uri) -> Unit)? = null
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
     var spriteUrl by rememberSaveable { mutableStateOf(initialSpriteUrl) }
     var spritePreview by remember { mutableStateOf<Bitmap?>(null) }
     var latestComposite by remember { mutableStateOf<Bitmap?>(null) }
@@ -72,33 +77,6 @@ fun CameraFeatureScreen(
 
     LaunchedEffect(spriteUrl) {
         spritePreview = loadBitmapFromUrl(spriteUrl)
-    }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { capturedPhoto ->
-        if (capturedPhoto == null) {
-            statusMessage = "Photo capture was cancelled."
-            return@rememberLauncherForActivityResult
-        }
-
-        scope.launch {
-            val spriteBitmap = loadBitmapFromUrl(spriteUrl)
-            if (spriteBitmap == null) {
-                statusMessage = "Could not load sprite URL. Update it and try again."
-                return@launch
-            }
-
-            val composite = overlaySprite(basePhoto = capturedPhoto, sprite = spriteBitmap)
-            val savedUri = saveCompositeImage(context = context, bitmap = composite)
-            latestComposite = composite
-            statusMessage = if (savedUri != null) {
-                onCompositeSaved?.invoke(savedUri)
-                "Saved composite image to gallery."
-            } else {
-                "Created overlay, but saving failed."
-            }
-        }
     }
 
     Column(
@@ -137,9 +115,14 @@ fun CameraFeatureScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { cameraLauncher.launch(null) }) {
-            Text("Capture Photo")
-        }
+        CameraWithSpriteButton(
+            spriteUrl = spriteUrl,
+            onCompositeSaved = onCompositeSaved,
+            onCompositeCreated = { composite, _ ->
+                latestComposite = composite
+            },
+            onStatusChange = { statusMessage = it }
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
         Text(text = statusMessage, style = MaterialTheme.typography.bodyMedium)
@@ -170,6 +153,7 @@ fun CameraWithSpriteButton(
     spriteUrl: String,
     modifier: Modifier = Modifier,
     onCompositeSaved: ((Uri) -> Unit)? = null,
+    onCompositeCreated: ((Bitmap, Uri?) -> Unit)? = null,
     onStatusChange: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -184,14 +168,22 @@ fun CameraWithSpriteButton(
         }
 
         scope.launch {
+            onStatusChange?.invoke("Processing photo...")
+
             val spriteBitmap = loadBitmapFromUrl(spriteUrl)
             if (spriteBitmap == null) {
                 onStatusChange?.invoke("Could not load sprite. Please try again.")
                 return@launch
             }
 
-            val composite = overlaySprite(basePhoto = capturedPhoto, sprite = spriteBitmap)
-            val savedUri = saveCompositeImage(context = context, bitmap = composite)
+            val composite = withContext(Dispatchers.Default) {
+                overlaySprite(basePhoto = capturedPhoto, sprite = spriteBitmap)
+            }
+            val savedUri = withContext(Dispatchers.IO) {
+                saveCompositeImage(context = context, bitmap = composite)
+            }
+
+            onCompositeCreated?.invoke(composite, savedUri)
 
             if (savedUri != null) {
                 onCompositeSaved?.invoke(savedUri)
@@ -202,12 +194,71 @@ fun CameraWithSpriteButton(
         }
     }
 
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            onStatusChange?.invoke("Camera permission granted. Opening camera...")
+            try {
+                cameraLauncher.launch(null)
+            } catch (_: SecurityException) {
+                onStatusChange?.invoke("Camera permission is required. Enable it in system settings.")
+            }
+        } else {
+            onStatusChange?.invoke("Camera permission denied. Enable it to capture photos.")
+        }
+    }
+
     Button(
-        onClick = { cameraLauncher.launch(null) },
+        onClick = {
+            val hasCameraPermission = ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.CAMERA
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (hasCameraPermission) {
+                try {
+                    cameraLauncher.launch(null)
+                } catch (_: SecurityException) {
+                    onStatusChange?.invoke("Camera permission is required. Enable it in system settings.")
+                }
+            } else {
+                onStatusChange?.invoke("Requesting camera permission...")
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        },
         modifier = modifier
     ) {
-        Text("Capture Photo with Pokémon")
+        Text("Capture Photo with Pokemon")
     }
+}
+
+/**
+ * Composable that provides a camera button which uses the PokemonViewModel to get the current
+ * Pokemon's front_default sprite URL. Falls back to a default Pikachu sprite if unavailable.
+ *
+ * @param viewModel The PokemonViewModel to observe the current Pokemon
+ * @param modifier The modifier to apply to the button
+ * @param onCompositeSaved Callback when a composite image is saved successfully
+ */
+@Composable
+fun CameraWithPokemonSpriteButton(
+    viewModel: PokemonViewModel? = null,
+    modifier: Modifier = Modifier,
+    onCompositeSaved: ((Uri) -> Unit)? = null,
+    onCompositeCreated: ((Bitmap, Uri?) -> Unit)? = null,
+    onStatusChange: ((String) -> Unit)? = null
+) {
+    val pokemon = viewModel?.pokemon?.observeAsState()?.value
+    val spriteUrl = pokemon?.sprites?.frontDefault ?: DEFAULT_PIKACHU_SPRITE_URL
+
+    CameraWithSpriteButton(
+        spriteUrl = spriteUrl,
+        modifier = modifier,
+        onCompositeSaved = onCompositeSaved,
+        onCompositeCreated = onCompositeCreated,
+        onStatusChange = onStatusChange
+    )
 }
 
 /**
@@ -298,4 +349,3 @@ fun saveCompositeImage(context: Context, bitmap: Bitmap): Uri? {
         null
     }
 }
-
