@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.pokedexapp"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.pokedexapp"
@@ -51,6 +49,8 @@ dependencies {
     implementation(libs.retrofit.converter.moshi)
     implementation(libs.moshi.kotlin)
 
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("io.coil-kt:coil:2.7.0")
     testImplementation(libs.junit)
 
     androidTestImplementation(libs.androidx.junit)
