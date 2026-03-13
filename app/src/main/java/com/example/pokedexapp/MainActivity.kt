@@ -19,17 +19,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             PokedexAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    // CameraFeatureScreen(modifier = Modifier.padding(innerPadding))
+                    CameraFeatureScreen(modifier = Modifier.padding(innerPadding))
                     /**HomeScreen(
                         onNavigateToDetail = { },
                         modifier = Modifier.padding(innerPadding)
-                    ) **/
+                    )**/
 
-                    DetailScreen(
-                        pokemonName = "pikachu",
+                    /**DetailScreen(
+                        pokemonName = "charizard",
                         onNavigateBack = { },
+                        onNavigateToCamera = { },
                         modifier = Modifier.padding(innerPadding)
-                    )
+                    ) **/
 
                 }
             }
