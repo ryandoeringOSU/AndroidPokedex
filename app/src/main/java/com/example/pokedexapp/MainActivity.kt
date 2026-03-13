@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import com.example.pokedexapp.ui.theme.PokedexAppTheme
+import com.example.pokedexapp.ui.home.HomeScreen
+import com.example.pokedexapp.ui.detail.DetailScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,7 +19,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             PokedexAppTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    CameraFeatureScreen(modifier = Modifier.padding(innerPadding))
+                    // CameraFeatureScreen(modifier = Modifier.padding(innerPadding))
+                    /**HomeScreen(
+                        onNavigateToDetail = { },
+                        modifier = Modifier.padding(innerPadding)
+                    ) **/
+
+                    DetailScreen(
+                        pokemonName = "pikachu",
+                        onNavigateBack = { },
+                        modifier = Modifier.padding(innerPadding)
+                    )
+
                 }
             }
         }
