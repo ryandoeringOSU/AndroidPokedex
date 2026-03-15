@@ -1,18 +1,21 @@
 package com.example.pokedexapp.ui
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.pokedexapp.data.LoadingStatus
 import com.example.pokedexapp.data.PokeApiService
 import com.example.pokedexapp.data.Pokemon
 import com.example.pokedexapp.data.PokemonRepository
 import com.example.pokedexapp.data.PokemonSpecies
+import com.example.pokedexapp.data.UserPreferencesRepository
 import kotlinx.coroutines.launch
 
-class PokemonViewModel : ViewModel() {
+class PokemonViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = PokemonRepository(PokeApiService.create())
+    private val preferencesRepository = UserPreferencesRepository(application)
 
     private val _pokemon = MutableLiveData<Pokemon?>(null)
     val pokemon: LiveData<Pokemon?> = _pokemon
@@ -26,6 +29,12 @@ class PokemonViewModel : ViewModel() {
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
+    init {
+        preferencesRepository.getLastSearch()?.let { savedName ->
+            loadPokemon(savedName)
+        }
+    }
+
     fun loadPokemon(name: String) {
         viewModelScope.launch {
             _loadingStatus.value = LoadingStatus.LOADING
@@ -38,6 +47,8 @@ class PokemonViewModel : ViewModel() {
                 _pokemon.value = pokemonResult.getOrNull()
                 _species.value = speciesResult.getOrNull()
                 _loadingStatus.value = LoadingStatus.SUCCESS
+                //save successful search
+                preferencesRepository.saveLastSearch(name)
             } else {
                 _pokemon.value = null
                 _species.value = null
