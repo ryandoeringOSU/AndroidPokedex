@@ -2,20 +2,16 @@ package com.example.pokedexapp
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
-import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.commit
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : FragmentActivity() {
+// Use AppCompatActivity for better compatibility with Navigation and UI components
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // This connects to the activity_main.xml layout that contains your NavHost
         setContentView(R.layout.activity_main)
 
-        if (savedInstanceState == null) {
-            supportFragmentManager.commit {
-                setReorderingAllowed(true)
-                replace(R.id.fragment_container, PokemonCameraFragment())
-            }
-        }
     }
 }
