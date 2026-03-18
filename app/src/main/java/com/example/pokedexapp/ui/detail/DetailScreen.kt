@@ -24,9 +24,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,16 +32,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.pokedexapp.data.LoadingStatus
-import com.example.pokedexapp.ui.PokemonViewModel
+import com.example.pokedexapp.data.Pokemon
+import com.example.pokedexapp.data.PokemonSpecies
 import com.example.pokedexapp.ui.home.PokeRed
 import com.example.pokedexapp.ui.home.PokeWhite
 
 val CardGold = Color(0xFFE8C84A)
 val CardDarkGold = Color(0xFFB8972A)
-val CardYellow = Color(0xFFF5E97A)
 val CardCream = Color(0xFFFFFDE7)
 val CardBrown = Color(0xFF5A3E00)
 
@@ -74,21 +70,14 @@ fun typeColor(typeName: String): Color {
 
 @Composable
 fun DetailScreen(
-    pokemonName: String,
+    pokemon: Pokemon?,
+    species: PokemonSpecies?,
+    loadingStatus: LoadingStatus,
+    errorMessage: String?,
     onNavigateBack: () -> Unit,
     onNavigateToCamera: () -> Unit,
-    modifier: Modifier = Modifier,
-    pokemonViewModel: PokemonViewModel = viewModel()
+    modifier: Modifier = Modifier
 ) {
-    val pokemon by pokemonViewModel.pokemon.observeAsState()
-    val species by pokemonViewModel.species.observeAsState()
-    val loadingStatus by pokemonViewModel.loadingStatus.observeAsState()
-    val errorMessage by pokemonViewModel.errorMessage.observeAsState()
-
-    LaunchedEffect(pokemonName) {
-        pokemonViewModel.loadPokemon(pokemonName)
-    }
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -102,7 +91,7 @@ fun DetailScreen(
                 .clip(RoundedCornerShape(16.dp))
                 .background(CardGold)
         ) {
-            when (loadingStatus ?: LoadingStatus.LOADING) {
+            when (loadingStatus) {
                 LoadingStatus.LOADING -> {
                     CircularProgressIndicator(
                         color = PokeRed,
@@ -119,7 +108,9 @@ fun DetailScreen(
                             text = errorMessage ?: "Something went wrong.",
                             color = PokeRed
                         )
+
                         Spacer(modifier = Modifier.height(16.dp))
+
                         Button(
                             onClick = onNavigateBack,
                             colors = ButtonDefaults.buttonColors(containerColor = PokeRed)
@@ -130,9 +121,36 @@ fun DetailScreen(
                 }
 
                 LoadingStatus.SUCCESS -> {
-                    pokemon?.let { p ->
-                        val spriteUrl = p.sprites.other?.officialArtwork?.frontDefault
-                            ?: p.sprites.frontDefault ?: ""
+                    if (pokemon == null) {
+                        Column(
+                            modifier = Modifier.align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "No Pokémon selected.",
+                                color = CardBrown
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = onNavigateBack,
+                                colors = ButtonDefaults.buttonColors(containerColor = CardDarkGold)
+                            ) {
+                                Text("Back", color = PokeWhite)
+                            }
+                        }
+                    } else {
+                        val spriteUrl = pokemon.sprites.other?.officialArtwork?.frontDefault
+                            ?: pokemon.sprites.frontDefault
+                            ?: ""
+
+                        val flavorText = species?.flavorTextEntries
+                            ?.firstOrNull { it.language.name == "en" }
+                            ?.flavorText
+                            ?.replace("\n", " ")
+                            ?.replace("\u000c", " ")
+                            ?: "No description available."
 
                         Column(
                             modifier = Modifier
@@ -142,18 +160,18 @@ fun DetailScreen(
                                 .padding(bottom = 80.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            // top bar — name + HP
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = p.name.replaceFirstChar { it.uppercase() },
+                                    text = pokemon.name.replaceFirstChar { it.uppercase() },
                                     fontSize = 30.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = CardBrown
                                 )
+
                                 Button(
                                     onClick = onNavigateBack,
                                     colors = ButtonDefaults.buttonColors(
@@ -168,7 +186,6 @@ fun DetailScreen(
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // sprite area
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -180,18 +197,17 @@ fun DetailScreen(
                             ) {
                                 AsyncImage(
                                     model = spriteUrl,
-                                    contentDescription = "${p.name} sprite",
+                                    contentDescription = "${pokemon.name} sprite",
                                     modifier = Modifier.size(180.dp)
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // type badges
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                p.types.forEach { typeSlot ->
+                                pokemon.types.forEach { typeSlot ->
                                     Box(
                                         modifier = Modifier
                                             .background(
@@ -212,33 +228,25 @@ fun DetailScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // flavor text box
-                            species?.let { s ->
-                                val entry = s.flavorTextEntries
-                                    .firstOrNull { it.language.name == "en" }
-                                entry?.let {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .border(1.dp, CardDarkGold, RoundedCornerShape(10.dp))
-                                            .background(CardCream)
-                                            .padding(12.dp)
-                                    ) {
-                                        Text(
-                                            text = it.flavorText.replace("\n", " "),
-                                            fontSize = 16.sp,
-                                            color = Color(0xFF444444),
-                                            textAlign = TextAlign.Center,
-                                            lineHeight = 20.sp
-                                        )
-                                    }
-                                }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(1.dp, CardDarkGold, RoundedCornerShape(10.dp))
+                                    .background(CardCream)
+                                    .padding(12.dp)
+                            ) {
+                                Text(
+                                    text = flavorText,
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF444444),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 20.sp
+                                )
                             }
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // abilities box
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -254,9 +262,11 @@ fun DetailScreen(
                                         fontWeight = FontWeight.Bold,
                                         color = CardBrown
                                     )
+
                                     Spacer(modifier = Modifier.height(4.dp))
+
                                     Text(
-                                        text = p.abilities.joinToString(" · ") {
+                                        text = pokemon.abilities.joinToString(" · ") {
                                             it.ability.name.replaceFirstChar { c -> c.uppercase() }
                                         },
                                         fontSize = 15.sp,
@@ -267,7 +277,6 @@ fun DetailScreen(
 
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            // bottom gold bar
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -289,19 +298,20 @@ fun DetailScreen(
                 }
             }
 
-            // camera FAB
-            FloatingActionButton(
-                onClick = onNavigateToCamera,
-                containerColor = PokeRed,
-                contentColor = PokeWhite,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.CameraAlt,
-                    contentDescription = "Take photo"
-                )
+            if (loadingStatus == LoadingStatus.SUCCESS && pokemon != null) {
+                FloatingActionButton(
+                    onClick = onNavigateToCamera,
+                    containerColor = PokeRed,
+                    contentColor = PokeWhite,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt,
+                        contentDescription = "Take photo"
+                    )
+                }
             }
         }
     }
