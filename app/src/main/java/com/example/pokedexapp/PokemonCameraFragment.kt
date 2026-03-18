@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.findNavController
 import com.example.pokedexapp.ui.PokemonViewModel
 import com.example.pokedexapp.ui.theme.PokedexAppTheme
 
@@ -30,6 +31,9 @@ class PokemonCameraFragment : Fragment() {
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                         PokemonCameraScreen(
                             viewModel = pokemonViewModel,
+                            onNavigateBack = {
+                                findNavController().popBackStack()
+                            },
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(innerPadding)
