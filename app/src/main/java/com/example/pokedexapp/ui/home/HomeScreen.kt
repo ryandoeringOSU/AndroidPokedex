@@ -1,7 +1,7 @@
 package com.example.pokedexapp.ui.home
 
-import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,20 +13,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.border
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,20 +38,17 @@ val CardDarkBg = Color(0xFF2A1A00)
 
 @Composable
 fun HomeScreen(
-    onNavigateToDetail: (String) -> Unit,
+    searchText: String,
+    onSearchTextChange: (String) -> Unit,
+    onSearchClick: () -> Unit,
+    isLoading: Boolean,
+    errorMessage: String?,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-    val prefs = context.getSharedPreferences("pokemon_prefs", Context.MODE_PRIVATE)
-
-    var searchText by rememberSaveable {
-        mutableStateOf(prefs.getString("last_search", "") ?: "")
-    }
-
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(CardDarkBg) // background color
+            .background(CardDarkBg)
             .padding(10.dp)
     ) {
         Box(
@@ -66,7 +58,6 @@ fun HomeScreen(
                 .clip(RoundedCornerShape(16.dp))
                 .background(CardGold)
         ) {
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -74,7 +65,6 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // title
                 Text(
                     text = "Pokédex",
                     fontSize = 52.sp,
@@ -85,7 +75,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // subtitle
                 Text(
                     text = "Search for any Pokémon",
                     fontSize = 16.sp,
@@ -94,7 +83,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // search card
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -103,11 +91,16 @@ fun HomeScreen(
                         .background(CardCream)
                         .padding(20.dp)
                 ) {
-                    Column {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         OutlinedTextField(
                             value = searchText,
-                            onValueChange = { searchText = it },
-                            label = { Text("Pokémon name", color = CardBrown.copy(alpha = 0.7f)) },
+                            onValueChange = onSearchTextChange,
+                            label = {
+                                Text(
+                                    "Pokémon name",
+                                    color = CardBrown.copy(alpha = 0.7f)
+                                )
+                            },
                             singleLine = true,
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -125,13 +118,8 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Button(
-                            onClick = {
-                                val name = searchText.trim().lowercase()
-                                if (name.isNotEmpty()) {
-                                    prefs.edit().putString("last_search", name).apply()
-                                    onNavigateToDetail(name)
-                                }
-                            },
+                            onClick = onSearchClick,
+                            enabled = !isLoading,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
@@ -142,9 +130,22 @@ fun HomeScreen(
                             )
                         ) {
                             Text(
-                                text = "Search",
+                                text = if (isLoading) "Searching..." else "Search",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        if (isLoading) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            CircularProgressIndicator(color = CardDarkGold)
+                        }
+
+                        if (!errorMessage.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = errorMessage,
+                                color = PokeRed
                             )
                         }
                     }
@@ -152,7 +153,6 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // bottom label
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

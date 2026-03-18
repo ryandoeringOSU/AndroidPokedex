@@ -29,17 +29,21 @@ class PokemonViewModel(application: Application) : AndroidViewModel(application)
     private val _errorMessage = MutableLiveData<String?>(null)
     val errorMessage: LiveData<String?> = _errorMessage
 
+    private val _navigateToDetail = MutableLiveData(false)
+    val navigateToDetail: LiveData<Boolean> = _navigateToDetail
+
     init {
         preferencesRepository.getLastSearch()?.let { savedName ->
-            loadPokemon(savedName)
+            loadPokemon(savedName, navigateOnSuccess = true)
         }
     }
 
-    fun loadPokemon(name: String) {
+    fun loadPokemon(name: String, navigateOnSuccess: Boolean = true) {
         viewModelScope.launch {
             _loadingStatus.value = LoadingStatus.LOADING
             _errorMessage.value = null
-            
+            _navigateToDetail.value = false
+
             val pokemonResult = repository.getPokemonDetails(name)
             val speciesResult = repository.getPokemonSpecies(name)
 
@@ -47,15 +51,24 @@ class PokemonViewModel(application: Application) : AndroidViewModel(application)
                 _pokemon.value = pokemonResult.getOrNull()
                 _species.value = speciesResult.getOrNull()
                 _loadingStatus.value = LoadingStatus.SUCCESS
-                //save successful search
                 preferencesRepository.saveLastSearch(name)
+
+                if (navigateOnSuccess) {
+                    _navigateToDetail.value = true
+                }
             } else {
                 _pokemon.value = null
                 _species.value = null
-                _errorMessage.value = pokemonResult.exceptionOrNull()?.message 
+                _errorMessage.value = pokemonResult.exceptionOrNull()?.message
                     ?: speciesResult.exceptionOrNull()?.message
+                            ?: "Something went wrong."
                 _loadingStatus.value = LoadingStatus.ERROR
+                _navigateToDetail.value = false
             }
         }
+    }
+
+    fun onDetailNavigationHandled() {
+        _navigateToDetail.value = false
     }
 }
