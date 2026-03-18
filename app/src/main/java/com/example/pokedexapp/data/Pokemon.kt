@@ -16,16 +16,16 @@ data class PokemonSpeciesReference(
 )
 
 data class PokemonSprites(
-    @Json(name = "front_default") val frontDefault: String?,
+    @param:Json(name = "front_default") val frontDefault: String?,
     val other: PokemonOtherSprites?
 )
 
 data class PokemonOtherSprites(
-    @Json(name = "official-artwork") val officialArtwork: PokemonOfficialArtwork?
+    @param:Json(name = "official-artwork") val officialArtwork: PokemonOfficialArtwork?
 )
 
 data class PokemonOfficialArtwork(
-    @Json(name = "front_default") val frontDefault: String?
+    @param:Json(name = "front_default") val frontDefault: String?
 )
 
 data class PokemonTypeSlot(
@@ -40,7 +40,7 @@ data class PokemonType(
 
 data class PokemonAbilitySlot(
     val ability: PokemonAbility,
-    @Json(name = "is_hidden") val isHidden: Boolean,
+    @param:Json(name = "is_hidden") val isHidden: Boolean,
     val slot: Int
 )
 
