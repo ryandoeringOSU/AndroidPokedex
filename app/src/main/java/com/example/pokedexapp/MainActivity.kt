@@ -1,17 +1,40 @@
 package com.example.pokedexapp
 
 import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Modifier
+import com.example.pokedexapp.ui.theme.PokedexAppTheme
+import com.example.pokedexapp.ui.detail.DetailScreen
+import com.example.pokedexapp.ui.home.HomeScreen
 
-// Use AppCompatActivity for better compatibility with Navigation and UI components
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        setContent {
+            PokedexAppTheme {
+                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                    // CameraFeatureScreen(modifier = Modifier.padding(innerPadding))
+                    /**HomeScreen(
+                        onNavigateToDetail = { },
+                        modifier = Modifier.padding(innerPadding)
+                    )**/
 
-        // This connects to the activity_main.xml layout that contains your NavHost
-        setContentView(R.layout.activity_main)
+                    DetailScreen(
+                        pokemonName = "flareon",
+                        onNavigateBack = { },
+                        onNavigateToCamera = { },
+                        modifier = Modifier.padding(innerPadding)
+                    )
 
+                }
+            }
+        }
     }
 }
+
